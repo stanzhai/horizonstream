@@ -63,11 +63,12 @@ fun HomeScreen(
     var showCameraPermissionDialog by remember { mutableStateOf(false) }
     var cameraPermissionDenied by remember { mutableStateOf(false) }
 
+    val fallbackConsoleName = stringResource(R.string.onboarding_fallback_console_name)
     fun startImmersiveOnboarding(host: DisplayHost) {
         context.startActivity(Intent(context, ImmersiveOnboardingActivity::class.java).apply {
             action = Intent.ACTION_MAIN
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(ImmersiveOnboardingActivity.EXTRA_CONSOLE_NAME, host.name ?: "this PlayStation")
+            putExtra(ImmersiveOnboardingActivity.EXTRA_CONSOLE_NAME, host.name ?: fallbackConsoleName)
             putExtra(ImmersiveOnboardingActivity.EXTRA_CONSOLE_ADDRESS, host.host)
         })
     }
@@ -155,10 +156,10 @@ fun HomeScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     actions = {
                         IconButton(onClick = { navController.navigate("help") }) {
-                            Icon(Icons.Default.Info, contentDescription = "Help", tint = Color.White)
+                            Icon(Icons.Default.Info, contentDescription = stringResource(R.string.home_help), tint = Color.White)
                         }
                         IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
+                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_settings), tint = Color.White)
                         }
                     }
                 )
@@ -169,7 +170,7 @@ fun HomeScreen(
                     onClick = viewModel::refreshDiscovery,
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh discovered consoles")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.home_refresh_discovery))
                 }
             }
         ) { paddingValues ->
@@ -194,13 +195,13 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No PlayStation found yet",
+                            text = stringResource(R.string.home_scan_no_host),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (discoveryActive) "Turn on your PlayStation and make sure it shares this Quest’s Wi‑Fi. Then scan again." else "Discovery is paused. Turn on your PlayStation, then start a scan.",
+                            text = if (discoveryActive) stringResource(R.string.home_scan_active_hint) else stringResource(R.string.home_scan_paused_hint),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.widthIn(max = 360.dp)
@@ -209,7 +210,7 @@ fun HomeScreen(
                         Button(onClick = viewModel::refreshDiscovery) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (discoveryActive) "Refresh search" else "Start discovery")
+                            Text(if (discoveryActive) stringResource(R.string.home_scan_refresh) else stringResource(R.string.home_scan_start))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(
@@ -222,7 +223,7 @@ fun HomeScreen(
                                 )
                             }
                         ) {
-                            Text("View walkthrough")
+                            Text(stringResource(R.string.home_view_walkthrough))
                         }
                     }
                 } else {
@@ -314,7 +315,7 @@ fun HomeScreen(
     if (hostToDelete != null) {
         AlertDialog(
             onDismissRequest = { hostToDelete = null },
-            title = { Text("Delete Console") },
+            title = { Text(stringResource(R.string.home_delete_console_title)) },
             text = { Text(stringResource(R.string.alert_message_delete_manual_host, hostToDelete?.host ?: "")) },
             confirmButton = {
                 TextButton(
@@ -342,13 +343,13 @@ fun HomeScreen(
                 cameraPermissionDenied = false
                 pendingOnboardingHost = null
             },
-            title = { Text(if (denied) "Camera access is required" else "Allow camera access for setup") },
+            title = { Text(stringResource(if (denied) R.string.home_camera_denied_title else R.string.home_camera_request_title)) },
             text = {
                 Text(
                     if (denied) {
-                        "Headset camera access was not granted, so Horizon Stream can’t scan the sign-in QR code or PS5 Link Device code. Allow it in system settings to continue setup."
+                        stringResource(R.string.home_camera_denied_text)
                     } else {
-                        "Horizon Stream needs camera access during setup to scan the PlayStation Network QR code and the eight-digit Link Device code. The camera is only used while scanning."
+                        stringResource(R.string.home_camera_request_text)
                     }
                 )
             },
@@ -362,7 +363,7 @@ fun HomeScreen(
                         cameraPermissionLauncher.launch(ImmersiveOnboardingActivity.cameraPermissions)
                     }
                 }) {
-                    Text(if (denied) "Try again" else "Allow camera")
+                    Text(if (denied) stringResource(R.string.home_camera_try_again) else stringResource(R.string.home_camera_allow))
                 }
             },
             dismissButton = {
@@ -370,7 +371,7 @@ fun HomeScreen(
                     showCameraPermissionDialog = false
                     cameraPermissionDenied = false
                     pendingOnboardingHost = null
-                }) { Text("Cancel") }
+                }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -409,7 +410,7 @@ fun HostItem(
                 val registeredHost = host.registeredHost
                 if (registeredHost != null) {
                     Text(
-                        text = registeredHost.serverNickname ?: "Registered Console", 
+                        text = registeredHost.serverNickname ?: stringResource(R.string.home_registered_console), 
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -421,7 +422,7 @@ fun HostItem(
                     )
                 } else if (host is DiscoveredDisplayHost) {
                     Text(
-                        text = host.discoveredHost.hostName ?: "Discovered Console", 
+                        text = host.discoveredHost.hostName ?: stringResource(R.string.home_discovered_console), 
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -433,7 +434,7 @@ fun HostItem(
                     )
                 } else if (host is ManualDisplayHost) {
                     Text(
-                        text = "Manual Host", 
+                        text = stringResource(R.string.home_manual_host), 
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -453,11 +454,11 @@ fun HostItem(
                     // editor for that registered device.
                     if (!host.isRegistered) {
                         IconButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.home_edit), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.home_delete), tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }

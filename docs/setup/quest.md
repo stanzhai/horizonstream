@@ -105,9 +105,9 @@ Quest Menu is reserved by Horizon Stream and cannot be used as a learnable butto
 
 ### In-stream controls and pointer mode
 
-Long-press Quest Menu while streaming to open the spatial **Stream Settings** panel. The panel can cycle the screen size and environment, toggle the curved immersive screen, change AI depth options, close the panel, or exit streaming. Aim either Quest controller at a row and squeeze its trigger to choose it. This pointer remains available even when **Quest Controller Support** is disabled, so controllers can still operate the immersive controls without emulating a PlayStation controller.
+Long-press Quest Menu while streaming to open the spatial **Stream Settings** panel. The panel can cycle the screen size, screen distance, and environment, toggle the curved immersive screen, change AI depth options, close the panel, or exit streaming. Aim either Quest controller at a row and squeeze its trigger to choose it. This pointer remains available even when **Quest Controller Support** is disabled, so controllers can still operate the immersive controls without emulating a PlayStation controller.
 
-The curved-screen and size choices take effect immediately and are saved for future immersive connections. A paired Bluetooth controller can use its D-pad or left stick to move through the panel and its primary button to select a row. Its Options/Menu button follows the same single-, double-, and long-press behavior as Quest Menu.
+The curved-screen, size, and distance choices take effect immediately and are saved for future immersive connections. A paired Bluetooth controller can use its D-pad or left stick to move through the panel and its primary button to select a row. Its Options/Menu button follows the same single-, double-, and long-press behavior as Quest Menu.
 
 ## AI 2D-to-3D Depth
 

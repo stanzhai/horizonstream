@@ -51,3 +51,6 @@ local.properties
 /chrome-extension/**/*.p12
 /chrome-extension/**/*.pfx
 /chrome-extension/**/*.crx
+
+# Local build artifacts
+/*.apk

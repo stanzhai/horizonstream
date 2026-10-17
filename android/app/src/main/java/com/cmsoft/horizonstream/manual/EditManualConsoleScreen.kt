@@ -84,7 +84,7 @@ fun EditManualConsoleScreen(
                 psnRedirectUrl = ""
                 isPsnAccountIdCapturedFromQr = wasScannedFromQr
             } catch (error: PsnLoginException) {
-                psnLookupError = error.message
+                psnLookupError = context.getString(error.resId)
             } finally {
                 isRetrievingPsnAccountId = false
             }
@@ -123,12 +123,12 @@ fun EditManualConsoleScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_back))
                         }
                     },
                     actions = {
                         IconButton(onClick = { navController.navigate("help") }) {
-                            Icon(Icons.Default.Info, contentDescription = "Help")
+                            Icon(Icons.Default.Info, contentDescription = stringResource(R.string.home_help))
                         }
                     }
                 )
@@ -152,7 +152,7 @@ fun EditManualConsoleScreen(
                     OutlinedTextField(
                         value = consoleName,
                         onValueChange = { consoleName = it },
-                        label = { Text("Console Name / Nickname") },
+                        label = { Text(stringResource(R.string.edit_console_name_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -162,7 +162,7 @@ fun EditManualConsoleScreen(
                     OutlinedTextField(
                         value = hostAddress,
                         onValueChange = { hostAddress = it },
-                        label = { Text("Console IP Address") },
+                        label = { Text(stringResource(R.string.edit_console_ip_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         singleLine = true,
@@ -179,7 +179,7 @@ fun EditManualConsoleScreen(
                             modifier = Modifier.align(Alignment.Start)
                         )
                         Text(
-                            "Do this before getting the temporary Link Device code from your console. The recommended method is to sign in on your computer and scan the redirect QR code with your Quest.",
+                            stringResource(R.string.edit_console_account_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.LightGray,
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -212,7 +212,7 @@ fun EditManualConsoleScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
-                                            "Scan sign-in QR code",
+                                            stringResource(R.string.console_onboarding_scan_qr),
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -225,13 +225,13 @@ fun EditManualConsoleScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                "Other ways to provide your Account ID",
+                                stringResource(R.string.edit_console_other_ways_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.align(Alignment.Start)
                             )
                             Text(
-                                "If you obtained an Account ID elsewhere, paste its Base64 value below. Or paste a one-time PS Remote Play redirect URL and let Horizon Stream retrieve the ID.",
+                                stringResource(R.string.edit_console_other_ways_detail),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.LightGray,
                                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -245,14 +245,14 @@ fun EditManualConsoleScreen(
                                 isPsnAccountIdCapturedFromQr = false
                             },
                             label = { Text(stringResource(R.string.hint_regist_psn_account_id)) },
-                            placeholder = { Text("8-byte Base64 Account ID") },
+                            placeholder = { Text(stringResource(R.string.edit_console_account_id_placeholder)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
 
                         if (isPsnAccountIdCapturedFromQr) {
                             Text(
-                                "Sign-in QR code captured successfully. Your Account ID is ready.",
+                                stringResource(R.string.edit_console_qr_captured),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
@@ -268,7 +268,7 @@ fun EditManualConsoleScreen(
                                     psnRedirectUrl = it
                                     psnLookupError = null
                                 },
-                                label = { Text("PS Remote Play redirect URL") },
+                                label = { Text(stringResource(R.string.edit_console_redirect_url_label)) },
                                 placeholder = { Text("https://remoteplay.dl.playstation.net/remoteplay/redirect?code=…") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -290,7 +290,7 @@ fun EditManualConsoleScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                 }
-                                Text(if (isRetrievingPsnAccountId) "Retrieving Account ID…" else "Use redirect URL")
+                                Text(if (isRetrievingPsnAccountId) stringResource(R.string.edit_console_retrieving_account_id) else stringResource(R.string.edit_console_use_redirect_url))
                             }
                             psnLookupError?.let {
                                 Text(
@@ -344,7 +344,7 @@ fun EditManualConsoleScreen(
                     OutlinedTextField(
                         value = pin,
                         onValueChange = { if (it.length <= 8) pin = it },
-                        label = { Text("8-Digit Console Link Device Code") },
+                        label = { Text(stringResource(R.string.edit_console_pin_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         singleLine = true
@@ -412,7 +412,7 @@ fun EditManualConsoleScreen(
                             .height(56.dp),
                         enabled = consoleName.isNotBlank() && hostAddress.isNotBlank() && psnId.isNotBlank() && pin.length == 8 && pin.all(Char::isDigit)
                     ) {
-                        Text("Register & Save", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.edit_console_register_save), fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -439,26 +439,26 @@ fun EditManualConsoleScreen(
                     if (registState == RegistExecuteViewModel.State.RUNNING) {
                         CircularProgressIndicator(modifier = Modifier.size(56.dp))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Registering with console...", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Text(stringResource(R.string.edit_console_registering), style = MaterialTheme.typography.titleMedium, color = Color.White)
                     } else if (registState == RegistExecuteViewModel.State.FAILED) {
-                        Text("Registration Failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.edit_console_registration_failed), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(stringResource(R.string.regist_info_failed), color = Color.LightGray)
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(onClick = { registViewModel.stop() }) {
-                            Text("Go Back")
+                            Text(stringResource(R.string.edit_console_go_back))
                         }
                     } else if (registState == RegistExecuteViewModel.State.SUCCESSFUL_DUPLICATE) {
-                        Text("Duplicate Registration", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.edit_console_duplicate_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("This console's MAC address is already registered. Do you want to overwrite it?", color = Color.LightGray)
+                        Text(stringResource(R.string.edit_console_duplicate_detail), color = Color.LightGray)
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             TextButton(onClick = { registViewModel.stop() }) {
-                                Text("Discard", color = Color.White)
+                                Text(stringResource(R.string.edit_console_discard), color = Color.White)
                             }
                             Button(onClick = { registViewModel.saveHost() }) {
-                                Text("Overwrite")
+                                Text(stringResource(R.string.action_regist_overwrite))
                             }
                         }
                     }

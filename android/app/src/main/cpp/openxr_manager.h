@@ -23,7 +23,7 @@ JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nat
 JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nativeSetSettingsOverlay(
         JNIEnv* env, jobject thiz, jbyteArray rgba_pixels, jint width, jint height);
 JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nativeSetImmersiveViewOptions(
-        JNIEnv* env, jobject thiz, jboolean curved, jfloat scale);
+        JNIEnv* env, jobject thiz, jboolean curved, jfloat scale, jfloat distance);
 JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nativeSetImmersivePointerEnabled(
         JNIEnv* env, jobject thiz, jboolean enabled);
 JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nativeSetStereoConversionEnabled(

@@ -1,6 +1,8 @@
 package com.cmsoft.horizonstream.manual
 
+import androidx.annotation.StringRes
 import android.content.ActivityNotFoundException
+import com.cmsoft.horizonstream.R
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -30,7 +32,7 @@ internal object PsnAccountIdLogin {
         try {
             context.startActivity(Intent(Intent.ACTION_VIEW, loginUri).setPackage(questBrowserPackage))
         } catch (_: ActivityNotFoundException) {
-            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, loginUri), "Open PS Remote Play sign-in"))
+            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, loginUri), context.getString(R.string.psn_login_chooser_title)))
         }
     }
 
@@ -52,11 +54,11 @@ internal object PsnAccountIdLogin {
                 "scope" to scope,
                 "redirect_uri" to redirectUri
             ),
-            failureContext = "sign-in response"
+
         )
         val accessToken = token.optString("access_token")
         if (accessToken.isBlank()) {
-            throw PsnLoginException("Sony did not return an access token. Start again with a new redirect URL.")
+            throw PsnLoginException(R.string.psn_login_no_access_token)
         }
 
         val account = requestJson(
@@ -65,11 +67,11 @@ internal object PsnAccountIdLogin {
             authorization = authorization,
             contentType = "application/json",
             requestBody = null,
-            failureContext = "account information"
+
         )
         val userId = account.optString("user_id")
         if (!userId.matches(Regex("\\d{1,20}"))) {
-            throw PsnLoginException("Sony returned an invalid account identifier. Start again with a new redirect URL.")
+            throw PsnLoginException(R.string.psn_login_invalid_account_id)
         }
         encodeAccountId(userId)
     }
@@ -96,16 +98,16 @@ internal object PsnAccountIdLogin {
         val uri = try {
             Uri.parse(value.trim())
         } catch (_: Exception) {
-            throw PsnLoginException("Paste the complete redirect URL from the Quest Browser address bar.")
+            throw PsnLoginException(R.string.psn_login_paste_full_url)
         }
         if (uri.scheme != "https" || uri.host != redirectHost || uri.path != redirectPath) {
-            throw PsnLoginException("This is not the PS Remote Play redirect URL. Open a new sign-in from this screen and copy the final URL.")
+            throw PsnLoginException(R.string.psn_login_not_redirect_url)
         }
         uri.getQueryParameter("code")?.takeIf { it.isNotBlank() }?.let { return it }
         if (!uri.getQueryParameter("error").isNullOrBlank()) {
-            throw PsnLoginException("Sony did not authorize the request. Start again in Quest Browser and complete sign-in.")
+            throw PsnLoginException(R.string.psn_login_not_authorized)
         }
-        throw PsnLoginException("The redirect URL did not include an authorization code. Copy the complete final URL.")
+        throw PsnLoginException(R.string.psn_login_no_code_in_url)
     }
 
     private fun requestJson(
@@ -113,8 +115,7 @@ internal object PsnAccountIdLogin {
         url: String,
         authorization: String,
         contentType: String,
-        requestBody: String?,
-        failureContext: String
+        requestBody: String?
     ): JSONObject {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
@@ -134,25 +135,26 @@ internal object PsnAccountIdLogin {
                 ?.bufferedReader()
                 ?.use { it.readText() }
                 .orEmpty()
-            if (status !in 200..299) throw PsnLoginException(describeFailure(status, body, failureContext))
+            if (status !in 200..299) throw PsnLoginException(describeFailure(status, body))
             JSONObject(body)
         } catch (error: PsnLoginException) {
             throw error
         } catch (_: Exception) {
-            throw PsnLoginException("Could not contact Sony. Check your connection and try a new sign-in.")
+            throw PsnLoginException(R.string.psn_login_network_error)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun describeFailure(status: Int, body: String, context: String): String {
+    @StringRes
+    private fun describeFailure(status: Int, body: String): Int {
         val oauthError = runCatching { JSONObject(body).optString("error") }.getOrDefault("")
         return when {
-            oauthError == "invalid_grant" -> "Sony says this redirect code is expired, already used, or was issued for a different request. Start again with a new URL."
-            oauthError == "invalid_client" -> "Sony rejected the legacy PS Remote Play client. This compatibility flow is currently unavailable."
-            oauthError == "access_denied" -> "Sony did not authorize the sign-in. Start again in Quest Browser and complete sign-in."
-            status == 403 -> "Sony refused the legacy PS Remote Play request (403). Start again with a new URL; if it repeats, Sony is rejecting this compatibility flow."
-            else -> "Sony could not retrieve the $context ($status). Start again with a new redirect URL."
+            oauthError == "invalid_grant" -> R.string.psn_login_code_expired
+            oauthError == "invalid_client" -> R.string.psn_login_client_rejected
+            oauthError == "access_denied" -> R.string.psn_login_not_authorized
+            status == 403 -> R.string.psn_login_refused_403
+            else -> R.string.psn_login_server_error
         }
     }
 
@@ -164,7 +166,7 @@ internal object PsnAccountIdLogin {
         var remaining = BigInteger(userId)
         val maxAccountId = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE)
         if (remaining.signum() < 0 || remaining > maxAccountId) {
-            throw PsnLoginException("Sony returned an account identifier that cannot be used for Remote Play.")
+            throw PsnLoginException(R.string.psn_login_account_id_unusable)
         }
         val bytes = ByteArray(8)
         val byteMask = BigInteger.valueOf(0xff)
@@ -176,4 +178,4 @@ internal object PsnAccountIdLogin {
     }
 }
 
-internal class PsnLoginException(message: String) : Exception(message)
+internal class PsnLoginException(@StringRes val resId: Int) : Exception()

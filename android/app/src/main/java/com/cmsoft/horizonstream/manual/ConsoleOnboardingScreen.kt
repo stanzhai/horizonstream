@@ -1,4 +1,6 @@
 package com.cmsoft.horizonstream.manual
+import androidx.compose.ui.res.stringResource
+import com.cmsoft.horizonstream.R
 
 import android.util.Base64
 import androidx.compose.foundation.background
@@ -103,6 +105,7 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
     var pin by remember { mutableStateOf("") }
     var consoleVersion by remember { mutableStateOf(ConsoleVersion.PS5) }
 
+    val saveFallbackError = stringResource(R.string.console_onboarding_save_error)
     fun retrieveAccountId(redirectUrl: String) {
         scope.launch {
             retrievingAccount = true
@@ -112,7 +115,7 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
                 preferences.psnAccountId = accountId
                 step = OnboardingStep.LINK_DEVICE
             } catch (error: PsnLoginException) {
-                lookupError = error.message ?: "That sign-in code could not be used. Create a new code and scan it once."
+                lookupError = context.getString(error.resId)
             } finally {
                 retrievingAccount = false
             }
@@ -127,10 +130,10 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Connect your PlayStation", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.console_onboarding_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -183,7 +186,7 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
                                         RegistInfo(target, hostAddress, false, null, Base64.decode(id, Base64.DEFAULT), pin.toInt()),
                                         manualId
                                     )
-                                }, { lookupError = "We couldn't save this console. Please try again." })
+                                }, { lookupError = saveFallbackError })
                         },
                         onOlderConsole = { navController.navigate("edit_manual_console/0") }
                     )
@@ -212,23 +215,23 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
     }
 
     when (registState) {
-        RegistExecuteViewModel.State.RUNNING -> ProgressOverlay("Pairing with your console", "Keep the Link Device screen open. This usually takes a few seconds.")
+        RegistExecuteViewModel.State.RUNNING -> ProgressOverlay(stringResource(R.string.console_onboarding_progress_title), stringResource(R.string.console_onboarding_progress_detail))
         RegistExecuteViewModel.State.FAILED -> FailureOverlay(
-            title = "We couldn’t pair with that console",
-            detail = "Check that Remote Play is enabled, the console and headset are on the same network, and the eight-digit Link Device code is still visible. Get a fresh code before trying again.",
+            title = stringResource(R.string.console_onboarding_failed_title),
+            detail = stringResource(R.string.console_onboarding_failed_detail),
             onRetry = { navController.popBackStack() }, onAdvanced = { navController.navigate("edit_manual_console/0") },
-            retryLabel = "Return to console list"
+            retryLabel = stringResource(R.string.console_onboarding_failed_retry)
         )
         RegistExecuteViewModel.State.SUCCESSFUL_DUPLICATE -> FailureOverlay(
-            title = "This console is already saved", detail = "You can return to your consoles, or replace the existing saved registration.",
-            onRetry = { registViewModel.saveHost() }, onAdvanced = { registViewModel.stop() }, retryLabel = "Replace saved console", secondaryLabel = "Keep existing"
+            title = stringResource(R.string.console_onboarding_duplicate_title), detail = stringResource(R.string.console_onboarding_duplicate_detail),
+            onRetry = { registViewModel.saveHost() }, onAdvanced = { registViewModel.stop() }, retryLabel = stringResource(R.string.console_onboarding_duplicate_replace), secondaryLabel = stringResource(R.string.console_onboarding_duplicate_keep)
         )
         else -> Unit
     }
 }
 
 @Composable private fun Progress(step: OnboardingStep) {
-    val labels = listOf("Find console", "Sign in", "Link device")
+    val labels = listOf(stringResource(R.string.console_onboarding_step_find), stringResource(R.string.console_onboarding_step_signin), stringResource(R.string.console_onboarding_step_link))
     val current = step.ordinal
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         labels.forEachIndexed { index, label -> Text("${if (index <= current) "●" else "○"} $label", color = if (index <= current) MaterialTheme.colorScheme.primary else Color.LightGray, style = MaterialTheme.typography.labelMedium) }
@@ -236,39 +239,39 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
 }
 
 @Composable private fun DiscoveryStep(address: String, showManualAddress: Boolean, onShowManualAddress: () -> Unit, onAddressChange: (String) -> Unit, onContinue: () -> Unit, onAdvanced: () -> Unit) {
-    StepCard("First, find your console", "Make sure your Quest and PlayStation are on the same Wi‑Fi network. Turn the console on, or wake it before continuing.") {
+    StepCard(stringResource(R.string.console_onboarding_discovery_title), stringResource(R.string.console_onboarding_discovery_detail)) {
         if (address.isNotBlank()) {
-            StatusLine(true, "Console found at $address")
-            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+            StatusLine(true, stringResource(R.string.console_onboarding_console_found, address))
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.console_onboarding_continue)) }
         } else {
-            StatusLine(false, "No console was discovered yet")
-            Text("Wait a moment, then return here after checking that both devices are on the same local network.", style = MaterialTheme.typography.bodyMedium)
-            if (showManualAddress) OutlinedTextField(address, onAddressChange, label = { Text("Console IP address") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
-            if (showManualAddress) Button(onClick = onContinue, enabled = address.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Use this address") }
-            else TextButton(onClick = onShowManualAddress) { Text("I know my console’s IP address") }
-            TextButton(onClick = onAdvanced) { Text("Use advanced setup instead") }
+            StatusLine(false, stringResource(R.string.console_onboarding_no_console))
+            Text(stringResource(R.string.console_onboarding_wait_hint), style = MaterialTheme.typography.bodyMedium)
+            if (showManualAddress) OutlinedTextField(address, onAddressChange, label = { Text(stringResource(R.string.console_onboarding_ip_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
+            if (showManualAddress) Button(onClick = onContinue, enabled = address.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.console_onboarding_use_address)) }
+            else TextButton(onClick = onShowManualAddress) { Text(stringResource(R.string.console_onboarding_enter_ip)) }
+            TextButton(onClick = onAdvanced) { Text(stringResource(R.string.console_onboarding_advanced)) }
         }
     }
 }
 
 @Composable private fun SignInStep(isRetrieving: Boolean, error: String?, onScan: () -> Unit, onAdvanced: () -> Unit) {
-    StepCard("Sign in on your computer", "On your computer, open the Horizon Stream Chrome extension side panel. Choose “Open PS Remote Play sign-in,” finish Sony sign-in, and keep the side panel open.") {
-        Text("When the panel shows its QR code, look at it through your headset and select Scan. The code is one-time and sensitive—scan it immediately and do not share it.", style = MaterialTheme.typography.bodyMedium)
+    StepCard(stringResource(R.string.console_onboarding_signin_title), stringResource(R.string.console_onboarding_signin_detail)) {
+        Text(stringResource(R.string.console_onboarding_signin_qr_hint), style = MaterialTheme.typography.bodyMedium)
         Button(onClick = onScan, enabled = !isRetrieving, modifier = Modifier.fillMaxWidth()) {
-            if (isRetrieving) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Getting your account…") } else Text("Scan sign-in QR code")
+            if (isRetrieving) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.console_onboarding_getting_account)) } else Text(stringResource(R.string.console_onboarding_scan_qr))
         }
         error?.let { StatusLine(false, it) }
-        TextButton(onClick = onAdvanced) { Text("QR scanning isn’t working") }
+        TextButton(onClick = onAdvanced) { Text(stringResource(R.string.console_onboarding_qr_not_working)) }
     }
 }
 
 @Composable private fun LinkDeviceStep(version: ConsoleVersion, pin: String, onVersionChange: (ConsoleVersion) -> Unit, onPinChange: (String) -> Unit, onPair: () -> Unit, onOlderConsole: () -> Unit) {
-    StepCard("Link your device", if (version.isPS5) "On PS5: Settings → System → Remote Play → Link Device. First enable Remote Play if asked." else "On PS4: Settings → Remote Play Connection Settings → Add Device.") {
-        Text("Enter the fresh eight-digit code shown on the console. It expires quickly and is not your PSN password or sign-in PIN.", style = MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(pin, onPinChange, label = { Text("8-digit Link Device code") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
-        TextButton(onClick = { onVersionChange(if (version == ConsoleVersion.PS5) ConsoleVersion.PS4_GE_8 else ConsoleVersion.PS5) }) { Text(if (version.isPS5) "Using a PS4 instead?" else "Using a PS5 instead?") }
-        Button(onClick = onPair, enabled = pin.length == 8, modifier = Modifier.fillMaxWidth()) { Text("Pair and save console") }
-        TextButton(onClick = onOlderConsole) { Text("Set up a PS4 below firmware 7.0") }
+    StepCard(stringResource(R.string.console_onboarding_link_title), if (version.isPS5) stringResource(R.string.console_onboarding_link_detail_ps5) else stringResource(R.string.console_onboarding_link_detail_ps4)) {
+        Text(stringResource(R.string.console_onboarding_link_code_hint), style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(pin, onPinChange, label = { Text(stringResource(R.string.console_onboarding_link_code_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
+        TextButton(onClick = { onVersionChange(if (version == ConsoleVersion.PS5) ConsoleVersion.PS4_GE_8 else ConsoleVersion.PS5) }) { Text(if (version.isPS5) stringResource(R.string.console_onboarding_using_ps4) else stringResource(R.string.console_onboarding_using_ps5)) }
+        Button(onClick = onPair, enabled = pin.length == 8, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.console_onboarding_pair_save)) }
+        TextButton(onClick = onOlderConsole) { Text(stringResource(R.string.console_onboarding_older_ps4)) }
     }
 }
 
@@ -280,4 +283,4 @@ fun ConsoleOnboardingScreen(navController: NavController, discoveredHost: String
 
 @Composable private fun ProgressOverlay(title: String, detail: String) { Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .8f)), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) { CircularProgressIndicator(); Spacer(Modifier.height(20.dp)); Text(title, style = MaterialTheme.typography.titleLarge); Spacer(Modifier.height(8.dp)); Text(detail) } } }
 
-@Composable private fun FailureOverlay(title: String, detail: String, onRetry: () -> Unit, onAdvanced: () -> Unit, retryLabel: String = "Start over", secondaryLabel: String = "Advanced setup") { Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .86f)), contentAlignment = Alignment.Center) { Card(Modifier.padding(24.dp)) { Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text(detail); Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(retryLabel) }; TextButton(onClick = onAdvanced, modifier = Modifier.align(Alignment.End)) { Text(secondaryLabel) } } } } }
+@Composable private fun FailureOverlay(title: String, detail: String, onRetry: () -> Unit, onAdvanced: () -> Unit, retryLabel: String = stringResource(R.string.failure_retry_start_over), secondaryLabel: String = stringResource(R.string.failure_advanced_setup)) { Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .86f)), contentAlignment = Alignment.Center) { Card(Modifier.padding(24.dp)) { Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text(detail); Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(retryLabel) }; TextButton(onClick = onAdvanced, modifier = Modifier.align(Alignment.End)) { Text(secondaryLabel) } } } } }

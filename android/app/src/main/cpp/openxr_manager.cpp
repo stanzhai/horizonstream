@@ -128,6 +128,7 @@ static bool g_metaTouchPlusEnabled = false;
 static bool g_compositionCylinderEnabled = false;
 static std::atomic<bool> g_curvedViewEnabled(false);
 static std::atomic<float> g_immersiveViewScale(1.0f);
+static std::atomic<float> g_immersiveViewDistance(3.0f);
 static std::atomic<int> g_immersiveEnvironment(0);
 static std::atomic<bool> g_recenterRequested(false);
 static XrPosef g_streamLayerPose = {};
@@ -543,10 +544,14 @@ static bool updateStreamLayerPose(XrTime displayTime) {
         return false;
 
     // Match the Sunset client: put the panel on the current full gaze ray,
-    // slightly below eye level, then leave it fixed in LOCAL space.
+    // slightly below eye level, then leave it fixed in LOCAL space. The
+    // panel is scaled with distance so its apparent (angular) size stays
+    // constant; only g_immersiveViewScale changes angular size.
+    const float viewDistance = g_immersiveViewDistance.load(
+        std::memory_order_relaxed);
     XrVector3f position = addVector(
         headLocation.pose.position,
-        scaleVector(forward, 2.5f));
+        scaleVector(forward, viewDistance));
     position.y -= 0.1f;
     g_streamLayerPose.position = position;
     g_streamLayerPose.orientation = quaternionFromGaze(forward);
@@ -575,9 +580,11 @@ static bool locatePointer(
     // OpenXR aim spaces point down -Z. Rotate that ray by the controller
     // orientation, then intersect it with the stream's quad plane.
     XrVector3f direction = rotateVector(q, { 0.0f, 0.0f, -1.0f });
+    const float viewDistance = g_immersiveViewDistance.load(
+        std::memory_order_relaxed);
     const XrPosef layerPose = g_streamLayerPoseValid ? g_streamLayerPose : XrPosef{
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 0.0f, -2.5f }
+        { 0.0f, 0.0f, -viewDistance }
     };
     const XrVector3f layerNormal = rotateVector(
         layerPose.orientation, { 0.0f, 0.0f, 1.0f });
@@ -598,8 +605,11 @@ static bool locatePointer(
     const XrVector3f localHit = rotateVector(
         inverseLayerRotation, subtractVector(hit, layerPose.position));
     const float scale = g_immersiveViewScale.load(std::memory_order_relaxed);
-    const float width = 3.0f * scale;
-    const float height = 1.6875f * scale;
+    // Mirrors the compositor: the quad grows with distance so the ray hit
+    // maps to the same UI point at any screen distance.
+    const float distanceFactor = viewDistance / 2.5f;
+    const float width = 3.0f * scale * distanceFactor;
+    const float height = 1.6875f * scale * distanceFactor;
     *normalizedX = 0.5f + localHit.x / width;
     *normalizedY = 0.5f - localHit.y / height;
     return *normalizedX >= 0.0f && *normalizedX <= 1.0f &&
@@ -1946,6 +1956,13 @@ static void* openxrRenderLoopThread(void* arg) {
                 XrCompositionLayerBaseHeader* layers[4] = { NULL, NULL, NULL, NULL };
                 uint32_t contentLayerCount = 0;
                 const float viewScale = g_immersiveViewScale.load(std::memory_order_relaxed);
+                const float viewDistance = g_immersiveViewDistance.load(std::memory_order_relaxed);
+                // Screen distance and apparent size are independent: the
+                // quad is scaled by distance / 2.5f so angular size stays
+                // constant, and only viewScale changes how big the screen
+                // looks. Onboarding lays out its panel for the 2.5m default.
+                const float distanceFactor = g_onboardingMode
+                    ? 1.0f : viewDistance / 2.5f;
                 const XrCompositionLayerBaseHeader* passthroughLayer =
                     !g_onboardingMode ? g_environmentRenderer.passthroughLayer() : NULL;
                 if (passthroughLayer)
@@ -1953,7 +1970,7 @@ static void* openxrRenderLoopThread(void* arg) {
                         const_cast<XrCompositionLayerBaseHeader*>(passthroughLayer);
                 const bool roomEnvironmentActive = !g_onboardingMode &&
                     g_environmentRenderer.layer() != NULL;
-                float roomScreenWidth = 3.0f * viewScale;
+                float roomScreenWidth = 3.0f * viewScale * distanceFactor;
                 if (roomEnvironmentActive) {
                     const int environment = g_immersiveEnvironment.load(
                         std::memory_order_relaxed);
@@ -1971,6 +1988,10 @@ static void* openxrRenderLoopThread(void* arg) {
                         y = 0.05f; z = -4.152f;
                         anchorWidth = 3.60f; screenFraction = 0.80f;
                     }
+                    // Distance only shifts the screen toward or away from
+                    // the user; the room (and its walls) keep their physical
+                    // size, so width is not scaled here.
+                    z -= (viewDistance - 3.0f);
                     roomScreenWidth = anchorWidth *
                         std::fmin(1.0f, screenFraction * viewScale);
                     leftLayer.pose = XrPosef{
@@ -2030,7 +2051,7 @@ static void* openxrRenderLoopThread(void* arg) {
                     leftCylinder.centralAngle = 1.28f;
                     leftCylinder.radius = roomEnvironmentActive
                         ? roomScreenWidth / leftCylinder.centralAngle
-                        : 2.5f * viewScale;
+                        : 2.5f * viewScale * distanceFactor;
                     // A cylinder pose identifies the cylinder's center, not
                     // its closest surface. Move that center toward the user
                     // by its radius so the middle of the curved screen stays
@@ -2408,7 +2429,7 @@ JNIEXPORT jobject JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_
     g_xrSessionBegun = false;
     g_streamLayerPose = XrPosef{
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 0.0f, -2.5f }
+        { 0.0f, 0.0f, -3.0f }
     };
     g_streamLayerPoseValid = false;
     g_lastHorizontalForward = { 0.0f, 0.0f, -1.0f };
@@ -2475,15 +2496,19 @@ JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nat
         JNIEnv* env,
         jobject thiz,
         jboolean curved,
-        jfloat scale) {
+        jfloat scale,
+        jfloat distance) {
     (void)env;
     (void)thiz;
     g_curvedViewEnabled.store(curved == JNI_TRUE, std::memory_order_relaxed);
     g_immersiveViewScale.store(
         std::fmax(0.75f, std::fmin(1.5f, scale)),
         std::memory_order_relaxed);
-    LOGI("Immersive view options updated: curved=%s scale=%.2f.",
-         curved == JNI_TRUE ? "true" : "false", scale);
+    g_immersiveViewDistance.store(
+        std::fmax(1.5f, std::fmin(8.0f, distance)),
+        std::memory_order_relaxed);
+    LOGI("Immersive view options updated: curved=%s scale=%.2f distance=%.2f.",
+         curved == JNI_TRUE ? "true" : "false", scale, distance);
 }
 
 JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nativeSetImmersiveEnvironment(
@@ -2750,13 +2775,14 @@ JNIEXPORT void JNICALL Java_com_cmsoft_horizonstream_stream_VRStreamActivity_nat
     g_curvedViewEnabled.store(false, std::memory_order_relaxed);
     g_immersiveEnvironment.store(0, std::memory_order_relaxed);
     g_immersiveViewScale.store(1.0f, std::memory_order_relaxed);
+    g_immersiveViewDistance.store(3.0f, std::memory_order_relaxed);
     g_immersivePointerEnabled.store(false, std::memory_order_relaxed);
     g_immersivePointerActive.store(false, std::memory_order_relaxed);
     g_immersivePointerPressed.store(false, std::memory_order_relaxed);
     g_recenterRequested.store(false, std::memory_order_relaxed);
     g_streamLayerPose = XrPosef{
         { 0.0f, 0.0f, 0.0f, 1.0f },
-        { 0.0f, 0.0f, -2.5f }
+        { 0.0f, 0.0f, -3.0f }
     };
     g_streamLayerPoseValid = false;
     g_lastHorizontalForward = { 0.0f, 0.0f, -1.0f };

@@ -149,6 +149,11 @@ class Preferences(context: Context)
 		get() = sharedPreferences.getFloat(immersiveViewScaleKey, 1.2f).coerceIn(0.75f, 1.5f)
 		set(value) { sharedPreferences.edit().putFloat(immersiveViewScaleKey, value.coerceIn(0.75f, 1.5f)).apply() }
 
+	private val immersiveViewDistanceKey = "horizonstream.immersive_view_distance"
+	var immersiveViewDistance
+		get() = sharedPreferences.getFloat(immersiveViewDistanceKey, 3.0f).coerceIn(1.5f, 8.0f)
+		set(value) { sharedPreferences.edit().putFloat(immersiveViewDistanceKey, value.coerceIn(1.5f, 8.0f)).apply() }
+
 	private val immersiveEnvironmentKey = "horizonstream.immersive_environment"
 	var immersiveEnvironment
 		get() = sharedPreferences.getInt(immersiveEnvironmentKey, 0).coerceIn(0, 4)

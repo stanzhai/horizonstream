@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import com.cmsoft.horizonstream.common.ManualHost
+import com.cmsoft.horizonstream.R
 import com.cmsoft.horizonstream.common.Preferences
 import com.cmsoft.horizonstream.common.getDatabase
 import com.cmsoft.horizonstream.common.ext.viewModelFactory
@@ -62,38 +63,62 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
     private external fun nativeSetOnboardingHeadLocked(enabled: Boolean)
     private external fun nativeStopOnboardingVR()
     private var page = 0
-    private val selectedConsoleName by lazy { intent.getStringExtra(EXTRA_CONSOLE_NAME)?.takeIf { it.isNotBlank() } ?: "Your PlayStation" }
+    private val selectedConsoleName by lazy { intent.getStringExtra(EXTRA_CONSOLE_NAME)?.takeIf { it.isNotBlank() } ?: getString(R.string.onboarding_fallback_console_name) }
     private val selectedConsoleAddress by lazy { intent.getStringExtra(EXTRA_CONSOLE_ADDRESS)?.takeIf { it.isNotBlank() }.orEmpty() }
     private val preferences by lazy { Preferences(applicationContext) }
     private val pages by lazy {
         val hasSavedAccount = accountId != null
+        val consoleName = selectedConsoleName
         listOf(
-            "Ready to pair" to if (hasSavedAccount) {
-                listOf("$selectedConsoleName was found on this network and is ready to pair.", "Your PlayStation Network sign-in is already saved on this headset.", "We’ll go straight to the PS5 Link Device step.")
+            getString(R.string.onboarding_title_ready) to if (hasSavedAccount) {
+                listOf(
+                    getString(R.string.onboarding_ready_found_on_network, consoleName),
+                    getString(R.string.onboarding_ready_signin_saved),
+                    getString(R.string.onboarding_ready_go_straight_link))
             } else {
-                listOf("$selectedConsoleName was found on this network and is ready to pair.", "We’ll securely retrieve the Remote Play details it needs next.")
+                listOf(
+                    getString(R.string.onboarding_ready_found_on_network, consoleName),
+                    getString(R.string.onboarding_ready_retrieve_next))
             },
-            "Sign in to PlayStation Network on your computer" to listOf("Use a computer with Google Chrome.", "Search Google for “Horizon Stream Chrome extension” and install it.", "Open the extension and sign in to PlayStation Network. When it finishes, it shows a QR code.", "Leave that QR code open: we’ll scan it in the next step."),
-            "Scan the one-time QR code" to listOf("In the Chrome extension, complete the PlayStation Network sign-in.", "Keep its newly generated QR code open on the computer for Quest to scan.", "The QR code is sensitive, expires quickly, and is never shared."),
-            "PlayStation Network connected" to listOf("Your sign-in is complete and ready to use.", "On your PS5, open Settings → System → Remote Play.", "Choose Link Device. If Remote Play is off, turn it on first.", "When the eight-digit code appears, leave it visible and press any button on your Quest controller to scan it."),
-            "Scan the Link Device code" to listOf("Keep the eight-digit code on your PS5 screen.", "We’ll read it from the camera and use it to securely pair this headset."),
-            "Link Device code captured" to listOf("The eight-digit code was read successfully.", "Press any button on your Quest controller to connect to your PlayStation."),
-            "Pairing your PlayStation" to listOf("Keep the PS5 on and leave the Link Device screen open.", "We’re saving the secure Remote Play keys now. This can take a few seconds."),
-            "Controllers ready" to listOf(
-                "A / B  →  Cross / Circle",
-                "X / Y  →  Square / Triangle",
-                "Triggers  →  L2 / R2",
-                "Thumbsticks  →  movement / camera",
-                "Grips  →  L1 / R1",
-                "Left grip + left stick  →  D-pad",
-                "Stick clicks  →  L3 / R3",
-                "Menu tap  →  Options",
-                "Menu double-tap  →  PlayStation button",
-                "Menu hold  →  exit stream",
-                "Other controllers: pair a DualSense, DualShock 4, or Bluetooth gamepad in Quest Settings → Devices → Bluetooth.",
-                "Press any button when you’re ready to connect."
-            ),
-            "Connected" to listOf("Your PlayStation is paired and ready.", "Starting your immersive stream…")
+            getString(R.string.onboarding_title_sign_in) to listOf(
+                getString(R.string.onboarding_signin_line_1),
+                getString(R.string.onboarding_signin_line_2),
+                getString(R.string.onboarding_signin_line_3),
+                getString(R.string.onboarding_signin_line_4)),
+            getString(R.string.onboarding_title_scan_qr) to listOf(
+                getString(R.string.onboarding_scan_qr_line_1),
+                getString(R.string.onboarding_scan_qr_line_2),
+                getString(R.string.onboarding_scan_qr_line_3)),
+            getString(R.string.onboarding_title_account) to listOf(
+                getString(R.string.onboarding_account_line_1),
+                getString(R.string.onboarding_account_line_2),
+                getString(R.string.onboarding_account_line_3),
+                getString(R.string.onboarding_account_line_4)),
+            getString(R.string.onboarding_title_scan_link) to listOf(
+                getString(R.string.onboarding_scan_link_line_1),
+                getString(R.string.onboarding_scan_link_line_2)),
+            getString(R.string.onboarding_title_link_captured) to listOf(
+                getString(R.string.onboarding_link_captured_line_1),
+                getString(R.string.onboarding_link_captured_line_2)),
+            getString(R.string.onboarding_title_pairing) to listOf(
+                getString(R.string.onboarding_pairing_line_1),
+                getString(R.string.onboarding_pairing_line_2)),
+            getString(R.string.onboarding_title_controllers) to listOf(
+                getString(R.string.onboarding_controllers_ab),
+                getString(R.string.onboarding_controllers_xy),
+                getString(R.string.onboarding_controllers_triggers),
+                getString(R.string.onboarding_controllers_thumbsticks),
+                getString(R.string.onboarding_controllers_grips),
+                getString(R.string.onboarding_controllers_dpad),
+                getString(R.string.onboarding_controllers_stick_clicks),
+                getString(R.string.onboarding_controllers_menu_tap),
+                getString(R.string.onboarding_controllers_menu_double_tap),
+                getString(R.string.onboarding_controllers_menu_hold),
+                getString(R.string.onboarding_controllers_other),
+                getString(R.string.onboarding_controllers_ready)),
+            getString(R.string.onboarding_title_connected) to listOf(
+                getString(R.string.onboarding_connected_line_1),
+                getString(R.string.onboarding_connected_line_2))
         )
     }
     private val database by lazy { getDatabase(applicationContext) }
@@ -203,7 +228,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                 page == READY_PAGE && accountId != null -> showPage(ACCOUNT_CONFIRMED_PAGE)
                 page == CONTROLLER_PAGE -> {
                     showPage(STREAM_SUCCESS_PAGE)
-                    scanStatus = "Pairing complete. Starting your immersive stream…"
+                    scanStatus = getString(R.string.onboarding_scan_pairing_complete_stream)
                     draw()
                     mainHandler.postDelayed({ launchConnectedStream() }, SUCCESS_SCREEN_DELAY_MS)
                 }
@@ -294,11 +319,11 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
     private fun beginQrScan() {
         if (scanning) return
         if (!hasCameraPermissions()) {
-            scanStatus = "Allow camera access to scan the QR code."; requestPermissions(cameraPermissions, CAMERA_REQUEST); draw(); return
+            scanStatus = getString(R.string.onboarding_scan_allow_camera); requestPermissions(cameraPermissions, CAMERA_REQUEST); draw(); return
         }
         val barcodeScanner = qrScannerOrNull() ?: run {
             scanning = false
-            scanStatus = "QR scanning could not start. Return to the main screen and use manual setup."
+            scanStatus = getString(R.string.onboarding_scan_qr_start_failed)
             draw()
             return
         }
@@ -308,7 +333,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         rejectedQrPayload = null
         lastPreviewUpdateMs = 0L
         synchronized(previewLock) { cameraFrame = null }
-        scanStatus = "Looking for the sign-in QR code…"
+        scanStatus = getString(R.string.onboarding_scan_looking_qr)
         draw()
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
@@ -350,14 +375,14 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         if (requestCode == CAMERA_REQUEST && hasCameraPermissions()) {
             if (page == LINK_PAGE) beginCodeScan() else beginQrScan()
         } else {
-            scanStatus = "Headset camera access is needed for scanning. Allow it in Quest settings."
+            scanStatus = getString(R.string.onboarding_scan_permission_denied)
             scanning = false
             draw()
         }
     }
     private fun handleTransfer(payload: String, transfer: PsnQrTransfer) {
         lifecycleScope.launch {
-            scanStatus = "Securing your PlayStation account…"
+            scanStatus = getString(R.string.onboarding_scan_securing)
             draw()
             try {
                 accountId = when (transfer) {
@@ -372,17 +397,17 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                 scanCompleted.set(false)
                 qrFrameInFlight.set(false)
                 scanning = true
-                scanStatus = "That code expired. Make a fresh QR code in Chrome; I’m watching for the new one."
+                scanStatus = getString(R.string.onboarding_scan_qr_expired)
                 draw()
             }
         }
     }
     private fun beginCodeScan() {
         if (scanning) return
-        if (!hasCameraPermissions()) { scanStatus = "Allow camera access to scan the Link Device code."; requestPermissions(cameraPermissions, CAMERA_REQUEST); draw(); return }
+        if (!hasCameraPermissions()) { scanStatus = getString(R.string.onboarding_scan_allow_camera_link); requestPermissions(cameraPermissions, CAMERA_REQUEST); draw(); return }
         val recognizer = textRecognizerOrNull() ?: run {
             scanning = false
-            scanStatus = "Link Device scanning could not start. Restart setup and try again."
+            scanStatus = getString(R.string.onboarding_scan_link_start_failed)
             draw()
             return
         }
@@ -393,7 +418,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         codeFrameInFlight.set(false)
         lastPreviewUpdateMs = 0L
         synchronized(previewLock) { cameraFrame = null }
-        scanStatus = "Looking for the eight-digit Link Device code…"
+        scanStatus = getString(R.string.onboarding_scan_looking_link)
         draw()
         ProcessCameraProvider.getInstance(this).addListener({ runCatching {
             val provider = ProcessCameraProvider.getInstance(this).get(); val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
@@ -419,7 +444,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                             stopCameraAnalysis()
                             runOnUiThread {
                                 showPage(LINK_CONFIRMED_PAGE)
-                                scanStatus = "Code $code found. Press a button on your Quest controller to connect."
+                                scanStatus = getString(R.string.onboarding_scan_code_found, code)
                                 draw()
                             }
                         }
@@ -443,9 +468,9 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         val message = error.message.orEmpty()
         return if (message.contains("No Meta passthrough camera", ignoreCase = true) ||
             message.contains("no camera", ignoreCase = true)) {
-            "This headset does not expose a passthrough camera to apps. Quest 2 cannot scan setup codes; use a Quest 3 or Quest 3S, or return to the main screen and use manual setup."
+            getString(R.string.onboarding_scan_camera_unavailable_passthrough)
         } else {
-            "The headset camera could not start. Confirm headset camera access is allowed, then try setup again."
+            getString(R.string.onboarding_scan_camera_unavailable)
         }
     }
 
@@ -456,7 +481,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         if (encodedAccount.isNullOrBlank() || address.isBlank() || pin == null) {
             pairingFailed = true
             scanning = false
-            scanStatus = "Pairing needs a fresh account sign-in and Link Device code. Press a button to scan again."
+            scanStatus = getString(R.string.onboarding_scan_pairing_needs_codes)
             page = PAIRING_PAGE
             nativeSetOnboardingHeadLocked(false)
             draw()
@@ -466,7 +491,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         if (accountBytes == null || accountBytes.size != RegistInfo.ACCOUNT_ID_SIZE) {
             pairingFailed = true
             scanning = false
-            scanStatus = "The PlayStation account sign-in was incomplete. Press a button to start again."
+            scanStatus = getString(R.string.onboarding_scan_signin_incomplete)
             page = PAIRING_PAGE
             nativeSetOnboardingHeadLocked(false)
             draw()
@@ -475,7 +500,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         pairingFailed = false
         scanning = true
         showPage(PAIRING_PAGE)
-        scanStatus = "Pairing with $selectedConsoleName…"
+        scanStatus = getString(R.string.onboarding_scan_pairing_with, selectedConsoleName)
         draw()
         val target = Target.PS5_1
         val info = RegistInfo(target, address, false, null, accountBytes, pin)
@@ -486,7 +511,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                 manualHostId = id
                 registrationViewModel.start(info, id)
             }, {
-                showPairingFailure("We couldn’t prepare this console for pairing. Check that it is awake and on the same network.")
+                showPairingFailure(getString(R.string.onboarding_scan_prepare_failed))
             })
         disposables.add(save)
     }
@@ -497,13 +522,13 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                 page = PAIRING_PAGE
                 pairingFailed = false
                 scanning = true
-                scanStatus = "Pairing with $selectedConsoleName…"
+                scanStatus = getString(R.string.onboarding_scan_pairing_with, selectedConsoleName)
                 draw()
             }
             RegistExecuteViewModel.State.SUCCESSFUL_DUPLICATE -> {
                 page = PAIRING_PAGE
                 scanning = true
-                scanStatus = "Refreshing the saved PlayStation registration…"
+                scanStatus = getString(R.string.onboarding_scan_refreshing)
                 draw()
                 registrationViewModel.saveHost()
             }
@@ -511,12 +536,12 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
                 scanning = false
                 pairingFailed = false
                 showPage(CONTROLLER_PAGE)
-                scanStatus = "Pairing complete. Review your controller options, then press a button to connect."
+                scanStatus = getString(R.string.onboarding_scan_pairing_complete_controllers)
                 draw()
             }
             RegistExecuteViewModel.State.FAILED,
             RegistExecuteViewModel.State.STOPPED -> {
-                showPairingFailure("Pairing didn’t complete. Make sure the PS5 is awake, Remote Play is enabled, and the code is still visible.")
+                showPairingFailure(getString(R.string.onboarding_scan_pairing_failed))
             }
             RegistExecuteViewModel.State.IDLE -> Unit
         }
@@ -527,14 +552,14 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         pairingFailed = true
         page = PAIRING_PAGE
         nativeSetOnboardingHeadLocked(false)
-        scanStatus = "$message Press a button to scan a fresh code."
+        scanStatus = getString(R.string.onboarding_scan_failure_retry, message)
         draw()
     }
 
     private fun launchConnectedStream() {
         if (streamLaunchScheduled || isFinishing) return
         val host = registrationViewModel.host ?: run {
-            showPairingFailure("The console paired, but its connection keys were not available yet.")
+            showPairingFailure(getString(R.string.onboarding_scan_keys_unavailable))
             return
         }
         streamLaunchScheduled = true
@@ -618,7 +643,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         p.color = Color.rgb(203,213,225); p.typeface = android.graphics.Typeface.DEFAULT; p.textSize=28f
         if (page == QR_PAGE || page == LINK_PAGE) {
             p.textSize = 25f
-            val instructionsBottom = if (page == QR_PAGE) drawWrappedText(c, "On your computer, sign in to PlayStation Network in the Chrome extension. Then keep its fresh QR code visible for Quest.", contentX, titleBottom + 26f, textWidth, 31f, p) else drawWrappedText(c, "Look at the eight-digit code on your PS5 Link Device screen.", contentX, titleBottom + 26f, textWidth, 31f, p)
+            val instructionsBottom = if (page == QR_PAGE) drawWrappedText(c, getString(R.string.onboarding_instruction_qr), contentX, titleBottom + 26f, textWidth, 31f, p) else drawWrappedText(c, getString(R.string.onboarding_instruction_link), contentX, titleBottom + 26f, textWidth, 31f, p)
             val cameraTop = maxOf(panel.top + 252f, instructionsBottom + 28f)
             val card = RectF(505f,cameraTop,775f,cameraTop + 270f)
             synchronized(previewLock) {
@@ -639,7 +664,7 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
             p.color = Color.rgb(56,189,248); p.style=Paint.Style.STROKE; p.strokeWidth=7f
             c.drawRoundRect(card,32f,32f,p)
             p.style=Paint.Style.FILL; p.textSize=27f
-            drawWrappedText(c, scanStatus.ifBlank { "Press a controller button to start scanning" }, contentX, panel.bottom - 94f, textWidth, 30f, p)
+            drawWrappedText(c, scanStatus.ifBlank { getString(R.string.onboarding_scan_status_default) }, contentX, panel.bottom - 94f, textWidth, 30f, p)
         } else {
             val controllerGuide = page == CONTROLLER_PAGE
             if (controllerGuide) {
@@ -665,14 +690,14 @@ class ImmersiveOnboardingActivity : ComponentActivity() {
         }
         p.color = Color.rgb(125,211,252); p.textSize=26f
         val footer = when {
-            page == PAIRING_PAGE && pairingFailed -> "Press a controller button to scan a fresh code"
-            page == PAIRING_PAGE -> "Pairing in progress…"
-            page == STREAM_SUCCESS_PAGE -> "Connected"
-            scanning && page == QR_PAGE -> "Keep the QR code inside the blue frame"
-            scanning && page == LINK_PAGE -> "Keep the Link Device code inside the blue frame"
-            page == LINK_CONFIRMED_PAGE -> "Press any button on your Quest controller to connect"
-            page == LINK_PAGE && linkDeviceCode != null -> "Press a controller button to pair"
-            else -> "Press any controller button to continue"
+            page == PAIRING_PAGE && pairingFailed -> getString(R.string.onboarding_footer_retry)
+            page == PAIRING_PAGE -> getString(R.string.onboarding_footer_pairing)
+            page == STREAM_SUCCESS_PAGE -> getString(R.string.onboarding_footer_connected)
+            scanning && page == QR_PAGE -> getString(R.string.onboarding_footer_keep_qr)
+            scanning && page == LINK_PAGE -> getString(R.string.onboarding_footer_keep_link)
+            page == LINK_CONFIRMED_PAGE -> getString(R.string.onboarding_footer_press_to_connect)
+            page == LINK_PAGE && linkDeviceCode != null -> getString(R.string.onboarding_footer_press_to_pair)
+            else -> getString(R.string.onboarding_footer_press_to_continue)
         }
         c.drawText(footer, contentX, panel.bottom - 26f, p)
         overlayBitmap.getPixels(overlayPixels, 0, w, 0, 0, w, h)

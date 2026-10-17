@@ -64,7 +64,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         width: Int,
         height: Int
     )
-    private external fun nativeSetImmersiveViewOptions(curved: Boolean, scale: Float)
+    private external fun nativeSetImmersiveViewOptions(curved: Boolean, scale: Float, distanceMeters: Float)
     private external fun nativeSetImmersiveEnvironment(environment: Int)
     private external fun nativeSetImmersivePointerEnabled(enabled: Boolean)
     private external fun nativeSetStereoConversionEnabled(
@@ -409,7 +409,8 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
                 Log.i(TAG, "OpenXR initialized successfully. Received Android Surface Swapchain.")
                 nativeSetImmersiveViewOptions(
                     preferences.curvedViewEnabled,
-                    preferences.immersiveViewScale)
+                    preferences.immersiveViewScale,
+                    preferences.immersiveViewDistance)
                 nativeSetImmersiveEnvironment(preferences.immersiveEnvironment)
                 applySimulated3dSetting(preferences)
                 // Pass the OpenXR Surface to the ViewModel's session so the PlayStation video is drawn to the VR quad
@@ -439,7 +440,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         else -> R.string.preferences_simulated_3d_intensity_medium
     })
 
-    private fun immersiveSettingsItemCount(): Int = 9
+    private fun immersiveSettingsItemCount(): Int = 10
 
     private fun openImmersiveControls() {
         if (isFinishing || isDestroyed || !isVRInitialized)
@@ -489,7 +490,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         if(!isVRInitialized)
             return false
         showImmersiveError(
-            title = "Stream connection error",
+            title = getString(R.string.stream_connection_error_title),
             message = message,
             actions = listOf(
                 getString(R.string.action_reconnect),
@@ -529,7 +530,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         if(!isVRInitialized)
             return false
         showImmersiveError(
-            title = "Unable to start stream",
+            title = getString(R.string.stream_create_error_title),
             message = message,
             actions = listOf(getString(R.string.action_quit_session))
         ) { finish() }
@@ -793,26 +794,39 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
                 preferences.immersiveViewScale = sizes[(index + 1) % sizes.size]
                 nativeSetImmersiveViewOptions(
                     preferences.curvedViewEnabled,
-                    preferences.immersiveViewScale)
+                    preferences.immersiveViewScale,
+                    preferences.immersiveViewDistance)
             }
             1 -> {
+                val distances = listOf(2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
+                val index = distances.indices.minByOrNull {
+                    kotlin.math.abs(distances[it] - preferences.immersiveViewDistance)
+                } ?: 2
+                preferences.immersiveViewDistance = distances[(index + 1) % distances.size]
+                nativeSetImmersiveViewOptions(
+                    preferences.curvedViewEnabled,
+                    preferences.immersiveViewScale,
+                    preferences.immersiveViewDistance)
+            }
+            2 -> {
                 preferences.curvedViewEnabled = !preferences.curvedViewEnabled
                 nativeSetImmersiveViewOptions(
                     preferences.curvedViewEnabled,
-                    preferences.immersiveViewScale)
+                    preferences.immersiveViewScale,
+                    preferences.immersiveViewDistance)
             }
-            2 -> preferences.questControllerEmulationEnabled =
+            3 -> preferences.questControllerEmulationEnabled =
                 !preferences.questControllerEmulationEnabled
-            3 -> {
+            4 -> {
                 preferences.immersiveEnvironment =
                     (preferences.immersiveEnvironment + 1) % 5
                 nativeSetImmersiveEnvironment(preferences.immersiveEnvironment)
             }
-            4 -> {
+            5 -> {
                 preferences.simulated3dEnabled = !preferences.simulated3dEnabled
                 applySimulated3dSetting(preferences)
             }
-            5 -> {
+            6 -> {
                 val strengths = listOf("low", "medium", "high", "strong")
                 val index = strengths.indexOf(preferences.simulated3dIntensity)
                     .coerceAtLeast(0)
@@ -821,16 +835,16 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
                 if(preferences.simulated3dEnabled)
                     applySimulated3dSetting(preferences)
             }
-            6 -> {
+            7 -> {
                 preferences.simulated3dMethod =
                     if (preferences.simulated3dMethod == "gather") "shift" else "gather"
                 applySimulated3dSetting(preferences)
             }
-            7 -> {
+            8 -> {
                 closeImmersiveSettings()
                 return
             }
-            8 -> {
+            9 -> {
                 closeImmersiveSettings()
                 exitImmersiveStream()
                 return
@@ -885,10 +899,15 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         paint.color = Color.rgb(56, 189, 248)
         paint.textSize = 48f
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-        canvas.drawText("Stream Settings", 56f, 78f, paint)
+        canvas.drawText(getString(R.string.stream_settings_title), 56f, 78f, paint)
 
         val preferences = Preferences(this)
         val sizeLabel = "${(preferences.immersiveViewScale * 100f).toInt()}%"
+        val distanceLabel = getString(
+            R.string.stream_settings_distance_m, preferences.immersiveViewDistance)
+        val onOff = { enabled: Boolean ->
+            getString(if (enabled) R.string.stream_settings_on else R.string.stream_settings_off)
+        }
         val environmentLabel = getString(when (preferences.immersiveEnvironment) {
             1 -> R.string.immersive_environment_home_theater
             2 -> R.string.immersive_environment_grand_cinema
@@ -902,21 +921,22 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
             else
                 R.string.preferences_simulated_3d_method_shift)
         val items = arrayOf(
-            "Screen size: $sizeLabel",
-            "Curved immersive screen: ${if(preferences.curvedViewEnabled) "On" else "Off"}",
-            "Quest controller support: ${if(preferences.questControllerEmulationEnabled) "On" else "Off"}",
-            "Environment: $environmentLabel",
-            "AI 2D-to-3D: ${if(preferences.simulated3dEnabled) "On" else "Off"}",
-            "AI depth strength: ${depthStrengthLabel(preferences.simulated3dIntensity)}",
-            "Depth warp: $methodLabel",
-            "Close",
-            "Exit streaming"
+            getString(R.string.stream_settings_screen_size, sizeLabel),
+            getString(R.string.stream_settings_screen_distance, distanceLabel),
+            getString(R.string.stream_settings_curved_view, onOff(preferences.curvedViewEnabled)),
+            getString(R.string.stream_settings_quest_controller, onOff(preferences.questControllerEmulationEnabled)),
+            getString(R.string.stream_settings_environment, environmentLabel),
+            getString(R.string.stream_settings_spatial_restart, onOff(preferences.simulated3dEnabled)),
+            getString(R.string.stream_settings_depth, depthStrengthLabel(preferences.simulated3dIntensity)),
+            getString(R.string.stream_settings_depth_method, methodLabel),
+            getString(R.string.stream_settings_close),
+            getString(R.string.stream_settings_exit)
         )
         items.forEachIndexed { index, item ->
-            val top = 86f + index * 55f
+            val top = 86f + index * 50f
             if(index == immersiveSettingsSelection) {
                 paint.color = Color.argb(255, 14, 116, 144)
-                canvas.drawRoundRect(RectF(38f, top, 922f, top + 48f),
+                canvas.drawRoundRect(RectF(38f, top, 922f, top + 44f),
                     18f, 18f, paint)
             }
             paint.color = Color.WHITE
@@ -925,14 +945,14 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
                 android.graphics.Typeface.DEFAULT_BOLD
             else
                 android.graphics.Typeface.DEFAULT
-            canvas.drawText(item, 64f, top + 32f, paint)
+            canvas.drawText(item, 64f, top + 30f, paint)
         }
 
         paint.color = Color.rgb(148, 163, 184)
         paint.textSize = 22f
         paint.typeface = android.graphics.Typeface.DEFAULT
-        val footer = "Aim + trigger: choose    D-pad / left stick: select    B/Menu: close"
-        canvas.drawText(footer, 56f, 612f, paint)
+        val footer = getString(R.string.stream_settings_footer)
+        canvas.drawText(footer, 56f, 618f, paint)
 
         submitImmersiveOverlay(bitmap, width, height)
     }
@@ -996,7 +1016,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         paint.textSize = 24f
         paint.typeface = android.graphics.Typeface.DEFAULT
         canvas.drawText(
-            "Left stick: select    A: choose    B or Menu: quit",
+            getString(R.string.stream_error_footer),
             56f,
             608f,
             paint
@@ -1023,7 +1043,10 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         paint.textSize = 48f
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
         canvas.drawText(
-            if(immersivePinIncorrect) "Incorrect PIN — try again" else "Enter PS5 Link PIN",
+            getString(if(immersivePinIncorrect)
+                R.string.immersive_pin_incorrect
+            else
+                R.string.immersive_pin_title),
             56f,
             78f,
             paint
@@ -1033,7 +1056,7 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         paint.textSize = 27f
         paint.typeface = android.graphics.Typeface.DEFAULT
         canvas.drawText(
-            "Use the PIN currently displayed by your PlayStation.",
+            getString(R.string.immersive_pin_hint),
             56f,
             132f,
             paint
@@ -1057,13 +1080,13 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         paint.textSize = 25f
         paint.typeface = android.graphics.Typeface.DEFAULT
         canvas.drawText(
-            "Left/right: select digit    Up/down: change digit",
+            getString(R.string.immersive_pin_footer_digits),
             120f,
             440f,
             paint
         )
         canvas.drawText(
-            "A: connect    B or Menu: quit",
+            getString(R.string.immersive_pin_footer_confirm),
             270f,
             500f,
             paint
@@ -1093,11 +1116,11 @@ class VRStreamActivity : StreamActivity(), SurfaceHolder.Callback {
         val pixelY = ((y - 0.1f) / 0.8f).coerceIn(0f, 1f) * 640f
         if (pixelX < 38f || pixelX > 922f)
             return
-        val index = kotlin.math.floor((pixelY - 86f) / 55f).toInt()
+        val index = kotlin.math.floor((pixelY - 86f) / 50f).toInt()
         if (index !in 0 until immersiveSettingsItemCount())
             return
-        val rowTop = 86f + index * 55f
-        if (pixelY < rowTop || pixelY > rowTop + 48f)
+        val rowTop = 86f + index * 50f
+        if (pixelY < rowTop || pixelY > rowTop + 44f)
             return
         immersiveSettingsSelection = index
         activateImmersiveSetting()

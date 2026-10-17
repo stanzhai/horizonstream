@@ -1,4 +1,6 @@
 package com.cmsoft.horizonstream.manual
+import androidx.compose.ui.res.stringResource
+import com.cmsoft.horizonstream.R
 
 import android.content.Context
 import android.content.ContextWrapper
@@ -90,7 +92,7 @@ internal fun AccountIdQrScanner(
         hasCameraPermission = context.hasPassthroughCameraPermissions() &&
             grants.values.all { it }
         if (!hasCameraPermission) {
-            cameraError = "Headset camera access is required to scan the QR code."
+            cameraError = context.getString(R.string.qr_scan_permission_required)
         }
     }
 
@@ -109,9 +111,9 @@ internal fun AccountIdQrScanner(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Scan PSN sign-in QR code", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.qr_scan_title), style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Look directly at the QR code displayed by the Horizon Stream Chrome extension. The headset camera moves with your head, so keep the code inside the center frame.",
+                stringResource(R.string.qr_scan_hint),
                 style = MaterialTheme.typography.bodyMedium
             )
             if (hasCameraPermission) {
@@ -143,7 +145,7 @@ internal fun AccountIdQrScanner(
                         )
                     }
                     Text(
-                        "Move your head to aim the center frame",
+                        stringResource(R.string.qr_scan_aim_hint),
                         color = Color.White,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -160,14 +162,14 @@ internal fun AccountIdQrScanner(
                     contentAlignment = Alignment.Center
                 ) {
                     Button(onClick = { permissionLauncher.launch(cameraPermissions) }) {
-                        Text("Allow camera access")
+                        Text(stringResource(R.string.qr_scan_allow_camera))
                     }
                 }
             }
             cameraError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = onDismissRequest) { Text("Cancel") }
+            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.action_cancel)) }
         }
     }
 }
@@ -267,9 +269,9 @@ private fun QrCameraPreview(
                 )
             } catch (error: Exception) {
                 val message = if (error.message.orEmpty().contains("No Meta passthrough camera", ignoreCase = true)) {
-                    "This headset does not expose a passthrough camera to apps. Quest 2 cannot scan setup codes; use a Quest 3 or Quest 3S, or paste the Account ID manually."
+                    context.getString(R.string.qr_scan_camera_unavailable_passthrough)
                 } else {
-                    "Quest could not start its passthrough camera. Confirm headset camera access is allowed and Horizon OS is up to date, or paste the Account ID manually."
+                    context.getString(R.string.qr_scan_camera_start_failed)
                 }
                 latestOnCameraError(message)
             }

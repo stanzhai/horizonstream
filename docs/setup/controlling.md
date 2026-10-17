@@ -40,7 +40,7 @@ The **Quest Menu** button is reserved by Horizon Stream and cannot be learned as
 
 ### In-stream settings and Bluetooth navigation
 
-The in-stream panel lets you change screen size, curved view, Quest Controller Support, and depth settings, then close the panel or exit the stream. Aim a Quest controller and squeeze its trigger to choose a row. This pointer remains available when Quest Controller Support is disabled.
+The in-stream panel lets you change screen size, screen distance, curved view, Quest Controller Support, and depth settings, then close the panel or exit the stream. Aim a Quest controller and squeeze its trigger to choose a row. This pointer remains available when Quest Controller Support is disabled.
 
 A connected Bluetooth controller can navigate this panel with its D-pad or left stick and select a row with its primary button. Its Options/Menu button uses the same single-, double-, and long-press behavior as Quest Menu.
 

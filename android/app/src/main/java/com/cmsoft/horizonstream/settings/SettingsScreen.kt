@@ -53,7 +53,7 @@ fun SettingsScreen(navController: NavController) {
                 title = { Text(stringResource(R.string.title_settings), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -213,7 +213,7 @@ fun SettingsScreen(navController: NavController) {
             Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFF334155))
 
             // CONTROLS & INPUT SECTION
-            SettingsCategoryHeader(title = "Controls & Input")
+            SettingsCategoryHeader(title = stringResource(R.string.preferences_category_title_controls))
 
             SettingSwitchItem(
                 title = stringResource(R.string.preferences_swap_cross_moon_title),
@@ -440,7 +440,7 @@ fun <T> OptionSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF38BDF8))
+                Text(stringResource(R.string.action_cancel), color = Color(0xFF38BDF8))
             }
         }
     )

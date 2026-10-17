@@ -314,7 +314,7 @@ open class StreamActivity : AppCompatActivity(), View.OnSystemUiVisibilityChange
 				return@runOnUiThread
 
 			val preferences = Preferences(this)
-			val enabledLabel = if(preferences.simulated3dEnabled) "On" else "Off"
+			val enabledLabel = getString(if(preferences.simulated3dEnabled) R.string.stream_settings_on else R.string.stream_settings_off)
 			val intensityLabel = getString(when(preferences.simulated3dIntensity) {
 				"low" -> R.string.preferences_simulated_3d_intensity_low
 				"high" -> R.string.preferences_simulated_3d_intensity_high
