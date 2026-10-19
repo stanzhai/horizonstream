@@ -29,7 +29,7 @@ constexpr uint32_t kMeshHeaderBytes = 20;
 constexpr uint32_t kMeshPartBytes = 12;
 constexpr uint32_t kMeshVertexFloats = 11;
 constexpr uint32_t kAtlasHeaderBytes = 24;
-constexpr uint32_t kEnvironmentEyeSize = 1024;
+constexpr uint32_t kEnvironmentEyeSizeFallback = 1536;
 // Room rendering shares the decoder's GL context. Restore state on every
 // return path, including asset and swapchain failures.
 struct ScopedGraphicsState {
@@ -341,6 +341,29 @@ void viewFromPose(const XrPosef& pose, float* out) {
     out[14] = -(r02 * px + r12 * py + r22 * pz);
 }
 
+// Fallback eye size when the runtime reports no recommendation. Covers
+// Quest 2 class devices; Quest 3 gets its larger runtime recommendation.
+uint32_t queryRecommendedEyeSize(XrInstance instance,
+        PFN_xrGetSystem getSystem,
+        PFN_xrEnumerateViewConfigurationViews enumerate) {
+    if (!getSystem || !enumerate)
+        return kEnvironmentEyeSizeFallback;
+    XrSystemGetInfo systemInfo{ XR_TYPE_SYSTEM_GET_INFO };
+    systemInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    if (XR_FAILED(getSystem(instance, &systemInfo, &systemId)))
+        return kEnvironmentEyeSizeFallback;
+    XrViewConfigurationView view{ XR_TYPE_VIEW_CONFIGURATION_VIEW };
+    uint32_t count = 0;
+    if (XR_FAILED(enumerate(instance, systemId,
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, &count, &view)) ||
+            count == 0 || view.recommendedImageRectWidth == 0)
+        return kEnvironmentEyeSizeFallback;
+    ENV_LOGI("Environment eye size follows runtime recommendation: %ux%u.",
+             view.recommendedImageRectWidth, view.recommendedImageRectHeight);
+    return std::min(view.recommendedImageRectWidth, view.recommendedImageRectHeight);
+}
+
 } // namespace
 
 struct ImmersiveEnvironmentRenderer::Impl {
@@ -353,6 +376,9 @@ struct ImmersiveEnvironmentRenderer::Impl {
     int activeEnvironment = -1;
     int failedEnvironment = -1;
     PFN_xrCreateSwapchain createSwapchain = nullptr;
+    PFN_xrGetSystem getSystem = nullptr;
+    PFN_xrEnumerateViewConfigurationViews enumerateViewConfigurationViews = nullptr;
+    uint32_t eyeSize = kEnvironmentEyeSizeFallback;
     PFN_xrEnumerateSwapchainImages enumerateSwapchainImages = nullptr;
     PFN_xrAcquireSwapchainImage acquireSwapchainImage = nullptr;
     PFN_xrWaitSwapchainImage waitSwapchainImage = nullptr;
@@ -399,6 +425,7 @@ struct ImmersiveEnvironmentRenderer::Impl {
     bool passthroughActive = false;
     bool passthroughFailed = false;
     bool layerReady = false;
+    GLint tintModeLocation = -1;
 
     bool loadOpenXrFunctions(PFN_xrGetInstanceProcAddr getProc) {
         if (!getProc)
@@ -410,6 +437,8 @@ struct ImmersiveEnvironmentRenderer::Impl {
             return false; \
         }
         LOAD_XR_FUNCTION(createSwapchain, "CreateSwapchain")
+        LOAD_XR_FUNCTION(getSystem, "GetSystem")
+        LOAD_XR_FUNCTION(enumerateViewConfigurationViews, "EnumerateViewConfigurationViews")
         LOAD_XR_FUNCTION(enumerateSwapchainImages, "EnumerateSwapchainImages")
         LOAD_XR_FUNCTION(acquireSwapchainImage, "AcquireSwapchainImage")
         LOAD_XR_FUNCTION(waitSwapchainImage, "WaitSwapchainImage")
@@ -526,8 +555,8 @@ struct ImmersiveEnvironmentRenderer::Impl {
                           XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
         info.format = colorFormat;
         info.sampleCount = 1;
-        info.width = kEnvironmentEyeSize;
-        info.height = kEnvironmentEyeSize;
+        info.width = eyeSize;
+        info.height = eyeSize;
         info.faceCount = 1;
         info.arraySize = 1;
         info.mipCount = 1;
@@ -572,8 +601,8 @@ struct ImmersiveEnvironmentRenderer::Impl {
             projectionViews[eye].subImage.swapchain = eyeSwapchains[eye];
             projectionViews[eye].subImage.imageRect.offset = { 0, 0 };
             projectionViews[eye].subImage.imageRect.extent = {
-                static_cast<int32_t>(kEnvironmentEyeSize),
-                static_cast<int32_t>(kEnvironmentEyeSize)
+                static_cast<int32_t>(eyeSize),
+                static_cast<int32_t>(eyeSize)
             };
             projectionViews[eye].subImage.imageArrayIndex = 0;
         }
@@ -649,9 +678,21 @@ struct ImmersiveEnvironmentRenderer::Impl {
                 "precision mediump float;\n"
                 "in vec2 vUv; in vec3 vColor;\n"
                 "uniform sampler2D uRoomTexture; uniform float uTextured;\n"
+                "uniform float uTintMode;\n"
                 "out vec4 fragColor;\n"
-                "void main(){ vec3 base=mix(vColor,texture(uRoomTexture,vUv).rgb,uTextured);"
-                "fragColor=vec4(clamp(base,0.0,1.0),1.0); }\n";
+                "void main(){\n"
+                "  vec3 base=mix(vColor,texture(uRoomTexture,vUv).rgb,uTextured);\n"
+                "  if(uTintMode>0.5){\n"
+                "    float lum=dot(base,vec3(0.2126,0.7152,0.0722));\n"
+                "    // Desaturate, then re-light warm gold in the highlights\n"
+                "    // and cool near-black in the shadows: a serious black-gold\n"
+                "    // grade without touching the CC-licensed atlas.\n"
+                "    vec3 mono=vec3(lum);\n"
+                "    vec3 gold=mix(vec3(0.020,0.016,0.014),vec3(0.98,0.78,0.42),smoothstep(0.05,0.95,lum));\n"
+                "    base=mix(mono*0.62,gold,0.55);\n"
+                "    base+= (texture(uRoomTexture,vUv).rgb-base)*0.10;\n"
+                "  }\n"
+                "  fragColor=vec4(clamp(base,0.0,1.0),1.0); }\n";
             const GLuint vs = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
             const GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
             if (!vs || !fs) {
@@ -685,6 +726,7 @@ struct ImmersiveEnvironmentRenderer::Impl {
             viewProjectionLocation = glGetUniformLocation(program, "uViewProjection");
             roomTextureLocation = glGetUniformLocation(program, "uRoomTexture");
             texturedLocation = glGetUniformLocation(program, "uTextured");
+            tintModeLocation = glGetUniformLocation(program, "uTintMode");
             colorLocation = glGetAttribLocation(program, "aColor");
             uvLocation = glGetAttribLocation(program, "aUv");
             glUseProgram(program);
@@ -705,7 +747,7 @@ struct ImmersiveEnvironmentRenderer::Impl {
             glGenRenderbuffers(1, &depthBuffer);
             glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
             glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
-                                  kEnvironmentEyeSize, kEnvironmentEyeSize);
+                                  eyeSize, eyeSize);
             glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                                       GL_RENDERBUFFER, depthBuffer);
@@ -741,7 +783,7 @@ struct ImmersiveEnvironmentRenderer::Impl {
             return false;
         }
 
-        glViewport(0, 0, kEnvironmentEyeSize, kEnvironmentEyeSize);
+        glViewport(0, 0, eyeSize, eyeSize);
         glEnable(GL_DEPTH_TEST);
         glDepthMask(GL_TRUE);
         glDisable(GL_SCISSOR_TEST);
@@ -761,6 +803,7 @@ struct ImmersiveEnvironmentRenderer::Impl {
         glUseProgram(program);
         glUniformMatrix4fv(viewProjectionLocation, 1, GL_FALSE, viewProjection);
         glUniform1i(roomTextureLocation, 0);
+        glUniform1f(tintModeLocation, activeEnvironment == 2 ? 1.0f : 0.0f);
         glBindVertexArray(vertexArray);
         glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -822,6 +865,9 @@ bool ImmersiveEnvironmentRenderer::initialize(AAssetManager* assets,
     impl_->activeEnvironment = -1;
     impl_->failedEnvironment = -1;
     impl_->functionsReady = impl_->loadOpenXrFunctions(getProc);
+    if (impl_->functionsReady)
+        impl_->eyeSize = queryRecommendedEyeSize(impl_->instance,
+            impl_->getSystem, impl_->enumerateViewConfigurationViews);
     impl_->passthroughFunctionsReady = passthroughEnabled &&
         impl_->loadPassthroughFunctions(getProc);
     impl_->passthroughFailed = false;
